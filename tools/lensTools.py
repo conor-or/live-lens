@@ -13,10 +13,6 @@
 import sys
 import os
 import matplotlib
-
-# Add the home path for module imports
-sys.path.append(os.environ['LENSMCMC'])
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams

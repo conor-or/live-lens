@@ -33,7 +33,7 @@ class App:
         self.image_sliders.grid(row=1, column=0)
 
         # Load default parameters
-        self.p = load_source('', './templates/default.template').params()
+        self.p = load_source('', '/home/co1215/Lensing/live-lens/templates/default.template').params()
 
         # Properties of source parameter sliders
         slabel = ['X Pos.', 'Y Pos.', 'Eff. Rad.', 'Sersic Index']
