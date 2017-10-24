@@ -24,8 +24,8 @@ class params:
 
         # Source parameters
 
-        self.srcx = 0.10                # Source 1 x position (arcsec)
-        self.srcy = 0.10                # Source 1 y position (arcsec)
+        self.srcx = 0.06                # Source 1 x position (arcsec)
+        self.srcy = 0.06                # Source 1 y position (arcsec)
         self.srcr = 0.10                # Source 1 Eff. Rad. (arcsec)
         self.srcb = 1.00                # Source 1 peak brightness
         self.srcm = 2.00                # Source Sersic index
