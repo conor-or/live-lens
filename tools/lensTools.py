@@ -12,12 +12,15 @@
 """
 import sys
 import os
-import matplotlib
+
+# Add the home path for module imports
+sys.path.append(os.environ['LENSMCMC'])
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from pickle import load
-from physTools import sersic, tessore, point_mass
+from physTools import sersic, tessore_switch
 from astropy.convolution import Gaussian2DKernel, convolve
 from scipy.interpolate import interp1d
 from scipy.optimize import brenth
@@ -25,38 +28,36 @@ from scipy.optimize import brenth
 
 class Params:
     """
-    A class collating parameters into a vector that can be used
-    by emcee
+    A class that takes the input vector from emcee and returns
+    the variable and fixed parameters
     """
 
-    def __init__(self, v):
+    def __init__(self, t, f):
+
+        # Get the fixed variables from file and replace the
+        # active parameters with the variables from emcee
+        self.v = f.vectorize
+        for j, i in enumerate(f.active_params):
+            self.v[i] = t[j]
+
         # Source parameters
 
-        self.srcx = v[0]  # Source 1 x position (arcsec)
-        self.srcy = v[1]  # Source 1 y position (arcsec)
-        self.srcr = v[2]  # Source 1 Eff. Rad. (arcsec)
-        self.srcb = v[3]  # Source 1 peak brightness
-        self.srcm = v[4]
+        self.srcx = self.v[0]  # Source 1 x position (arcsec)
+        self.srcy = self.v[1]  # Source 1 y position (arcsec)
+        self.srcr = self.v[2]  # Source 1 Eff. Rad. (arcsec)
+        self.srcb = self.v[3]  # Source 1 peak brightness
+        self.srcm = self.v[4]  # Source 1 sersic index
 
         # Lens parameters
 
-        self.mass = v[5]  # Lens total mass OR Einstein radius
-        self.gamm = v[6]  # Lens mass distribution slope
-        self.axro = v[7]  # Lens axis ratio (1 - ellipticity)
-        self.posa = v[8]  # Lens position angle
-
-    def to_dict(self):
-        return {
-            'srcx': self.srcx,
-            'srcy': self.srcy,
-            'srcr': self.srcr,
-            'srcb': self.srcb,
-            'srcm': self.srcm,
-            'mass': self.mass,
-            'gamm': self.gamm,
-            'axro': self.axro,
-            'posa': self.posa
-        }
+        self.mss1 = self.v[5]  # Lens total mass OR Einstein radius
+        self.mss2 = self.v[6]  # Lens total mass OR Einstein radius
+        self.mss3 = self.v[7]  # Lens total mass OR Einstein radius
+        self.gmm1 = self.v[8]  # Lens mass distribution inner slope
+        self.gmm2 = self.v[9]  # Lens mass distribution middle slope
+        self.gmm3 = self.v[10]  # Lens mass distribution outer slope
+        self.axro = self.v[11]  # Lens axis ratio (1 - ellipticity)
+        self.posa = self.v[12]  # Lens position angle
 
 
 class Lens:
@@ -80,13 +81,19 @@ class Lens:
         self.src = source(self.p)
 
         # Construct the (noiseless) image plane
-        self.img0 = model(self.p.vectorize, self.p)
+        self.img0 = model([self.p.vectorize[i] for i in self.p.active_params], self.p)
+
+        # Get the deflection angle field for this lens
+        self.alpha = deflection_angle(self.pix, self.p)
 
         # Get the level of noise and the 2-sigma mask
         self.noise, self.mask = self.snr_set()
 
         # Add the noise to the image
         self.img = self.img0 + np.random.normal(0.0, self.noise, self.img0.shape)
+
+        # Calculate the critical curve and caustic
+        self.cc = caus_crit(self.pix, self.alpha, self.p)
 
         # Plot if necessary
         if plot:
@@ -98,10 +105,11 @@ class Lens:
         rcParams['font.size'] = 12
         cmap = plt.get_cmap('magma')
         fig, ax = plt.subplots(1, 2)
+        src_extent = source_zoom(self.p.srcr, self.p.srcx, self.p.srcy)
 
         # Plot source plane and image plane
         im0 = ax[0].imshow(self.src, interpolation='none', cmap=cmap,
-                           extent=[-2.0, 2.0, -2.0, 2.0], origin='lower')
+                           extent=src_extent, origin='lower')
         im1 = ax[1].imshow(self.img, interpolation='none', cmap=cmap,
                            extent=[-2.0, 2.0, -2.0, 2.0], origin='lower')
 
@@ -111,30 +119,36 @@ class Lens:
         xx = self.pix[0] * np.cos(a) - self.pix[1] * np.sin(a)
         yy = self.pix[0] * np.sin(a) + self.pix[1] * np.cos(a)
 
-        msk = ax[1].contour(self.pix[0], self.pix[1],
-                            self.mask, levels=[0.0], colors='w', alpha=0.5)
+        # msk = ax[1].contour(self.pix[0], self.pix[1],
+        #                     self.mask, levels=[0.0], colors='w', alpha=0.5)
 
         rootf = np.sqrt(self.p.axro)
 
-        if self.p.trunc:
-            cx2 = ax[1].contour(self.pix[0], self.pix[1],
-                                np.hypot(xx * rootf, yy / rootf),
-                                levels=[self.p.trrd * rootf], colors='w',
-                                alpha=0.5)
-
+        if (self.p.npow == 1 and self.p.trunc) or self.p.npow == 2:
+            levels = [self.p.rad1 * rootf]
+        elif self.p.npow == 3:
+            levels = [self.p.rad1 * rootf, self.p.rad2 * rootf]
         else:
-            cx2 = ax[1].contour(self.pix[0], self.pix[1],
-                                np.hypot(xx * self.p.axro, yy),
-                                levels=np.linspace(0.0, 2.0, 11), colors='w',
-                                alpha=0.1)
+            levels = [self.p.mss1 / rootf]
 
-        # Plot Caustic
-        if not self.p.trunc:
-            ca = caustic(self.p.axro, self.p.mass, a=a)
-            ax[0].plot(ca[1], ca[0], 'w', alpha=0.5)
+        # Plot lens features
+        cx2 = ax[1].contour(self.pix[0], self.pix[1],
+                            np.hypot(xx * rootf, yy / rootf),
+                            levels=levels, colors='w',
+                            alpha=0.3)
+
+        cx2 = ax[1].contour(self.pix[0], self.pix[1],
+                            np.hypot(xx * rootf, yy / rootf),
+                            levels=np.linspace(0.0, 4.0, 21), colors='w',
+                            alpha=0.1)
+
+        # Calculate caustic and critical curve and plot each
+        ca, cc = caus_crit(self.pix, self.alpha, self.p, crit_line=True)
+        if not self.p.trunc or self.p.axro < 0.90:
+            ax[0].plot(ca[0], ca[1], 'w', alpha=0.5)
+        ax[1].plot(cc[0], cc[1], 'w', alpha=0.5)
 
         # Axis settings
-        src_extent = source_zoom(self.p.srcr, self.p.srcx, self.p.srcy)
         ax[0].set_xlim(src_extent[:2])
         ax[0].set_ylim(src_extent[2:])
         ax[0].set_xlabel('$\\beta_1$ (")')
@@ -162,8 +176,8 @@ class Lens:
         y1_ = x * np.sin(-a + np.pi / 2.0) + y * np.cos(-a + np.pi / 2.0)
 
         for ai in ax:
-            ai.plot(x_, y_, color='w', linestyle='dotted', alpha=0.5)
-            ai.plot(x1_, y1_, color='w', linestyle='dotted', alpha=0.5)
+            ai.plot(x_, y_, color='w', alpha=0.1)
+            ai.plot(x1_, y1_, color='w', alpha=0.1)
 
         # Adjust axes
         fig.subplots_adjust(left=0.05, right=0.95, top=0.95, wspace=0.15)
@@ -237,15 +251,18 @@ def source(p):
     # Storage for different grid sizes
     x1, x2 = [], []
 
+    src_extent = source_zoom(p.srcr, p.srcx, p.srcy)
+    n = 300
+
     # Loop over sub-pixelisation size and create
     # up to p.sub sub-pixelised grids
     for s in range(1, p.sub + 1):
         # Define 1D grid
-        x = np.linspace(- (p.wid / 2.0) + (p.pwd / 2.0),
-                        (p.wid / 2.0) - (p.pwd / 2.0), p.n * s)
+        x = np.linspace(src_extent[0], src_extent[1], n * s)
+        y = np.linspace(src_extent[2], src_extent[3], n * s)
 
         # Define 2D grid and reshape
-        xx, yy = map(lambda x: x.reshape(p.n, s, p.n, s), np.meshgrid(x, x))
+        xx, yy = map(lambda x: x.reshape(n, s, n, s), np.meshgrid(x, y))
 
         # Add to list
         x1.append(xx)
@@ -259,11 +276,11 @@ def source(p):
     msk = (np.array(np.ceil(p.sub * src / np.max(src)), dtype='int') - 1).clip(0, p.sub - 1)
 
     # Storage for the final source
-    src = np.zeros(shape=(p.n, p.n))
+    src = np.zeros(shape=(n, n))
 
     # Loop over the pixels
-    for i in range(p.n):
-        for j in range(p.n):
+    for i in range(n):
+        for j in range(n):
             # Get sub-coordinates within each pixel
             x = x1[msk[i, j]][i, :, j, :]
             y = x2[msk[i, j]][i, :, j, :]
@@ -274,7 +291,7 @@ def source(p):
     return src
 
 
-def model(theta, fixed_parameters):
+def model(theta, fixd):
     """
     Creates the image plane by adaptively integrating. Theta is the vector in
     the parameter space. Fixed paramaters come directly from the file
@@ -283,19 +300,19 @@ def model(theta, fixed_parameters):
     x1, x2 = [], []
 
     # Store temporary parameters
-    tp = Params(theta)
+    temp = Params(theta, fixd)
 
     # Loop over sub-pixelisation size and create
     # up to p.sub sub-pixelised grids
-    for s in range(1, fixed_parameters.sub + 1):
+    for s in range(1, fixd.sub + 1):
         # Define 1D grid
-        x = np.linspace(- (fixed_parameters.wid / 2.0) + (fixed_parameters.pwd / 2.0),
-                          (fixed_parameters.wid / 2.0) - (fixed_parameters.pwd / 2.0),
-                        fixed_parameters.n * s)
+        x = np.linspace(- (fixd.wid / 2.0) + (fixd.pwd / 2.0),
+                        (fixd.wid / 2.0) - (fixd.pwd / 2.0),
+                        fixd.n * s)
 
         # Define 2D grid and reshape
-        xx, yy = map(lambda x: x.reshape(fixed_parameters.n, s,
-                                         fixed_parameters.n, s),
+        xx, yy = map(lambda x: x.reshape(fixd.n, s,
+                                         fixd.n, s),
                      np.meshgrid(x, x))
 
         # Add to list
@@ -303,40 +320,53 @@ def model(theta, fixed_parameters):
         x2.append(yy)
 
     img = np.sqrt(
-        sersic(
-            tessore((x1[0], x2[0]),
-                    tp.gamm, tp.axro, tp.mass, tp.posa,
-                    trunc=fixed_parameters.trunc,
-                    r0=fixed_parameters.trrd),
-            tp.srcx, tp.srcy, tp.srcr, tp.srcb, tp.srcm
-        ).mean(axis=3).mean(axis=1))
+        sersic(tessore_switch((x1[0], x2[0]),
+                              temp.gmm1, temp.gmm2, temp.gmm3, temp.axro,
+                              temp.mss1, temp.mss2, temp.mss3, temp.posa,
+                              fixd.rad1, fixd.rad2, trunc=fixd.trunc, npow=fixd.npow),
+               temp.srcx, temp.srcy, temp.srcr, temp.srcb, temp.srcm,).mean(axis=3).mean(axis=1))
 
     # Find the level of detail (0-sub) neccessary for that pixel
-    msk = np.clip(np.array(np.ceil(fixed_parameters.sub * img / np.max(img)),
-                           dtype='int') - 1, 0, fixed_parameters.sub - 1)
+    msk = np.clip(np.array(np.ceil(fixd.sub * img / np.max(img)),
+                           dtype='int') - 1, 0, fixd.sub - 1)
 
     # Storage for the final image
-    img = np.zeros(shape=(fixed_parameters.n, fixed_parameters.n))
+    img = np.zeros(shape=(fixd.n, fixd.n))
 
     # Loop over the pixels
-    for i in range(fixed_parameters.n):
-        for j in range(fixed_parameters.n):
+    for i in range(fixd.n):
+        for j in range(fixd.n):
             # Get sub-coordinates within each pixel
             x = x1[msk[i, j]][i, :, j, :]
             y = x2[msk[i, j]][i, :, j, :]
 
             # Integrate over those coordinates and save
-            alpha = tessore((x, y), tp.gamm, tp.axro, tp.mass, tp.posa,
-                            trunc=fixed_parameters.trunc,
-                            r0=fixed_parameters.trrd)
-            img[i, j] = sersic(alpha, tp.srcx, tp.srcy, tp.srcr,
-                               tp.srcb, tp.srcm).mean()
+            alpha = tessore_switch((x, y),
+                                   temp.gmm1, temp.gmm2, temp.gmm3, temp.axro,
+                                   temp.mss1, temp.mss2, temp.mss3, temp.posa,
+                                   fixd.rad1, fixd.rad2, trunc=fixd.trunc, npow=fixd.npow)
+            img[i, j] = sersic(alpha, temp.srcx, temp.srcy, temp.srcr,
+                               temp.srcb, temp.srcm).mean()
 
     return img
 
 
-def caustic(f, b, a=0.0):
+def deflection_angle(xy, p):
+    """
+    Given the input parameters, simply finds the full deflection angle field.
+    """
 
+    x1, x2 = xy
+    a1, a2 = tessore_switch(xy,
+                            p.gmm1, p.gmm2, p.gmm3, p.axro,
+                            p.mss1, p.mss2, p.mss3, p.posa,
+                            p.rad1, p.rad2, p.npow,
+                            trunc=p.trunc)
+
+    return x1 - a1, x2 - a2
+
+
+def caustic(f, b, a=0.0):
     theta = np.linspace(0.0, 2 * np.pi, 1000)
     delta = np.hypot(np.cos(theta), np.sin(theta) * f)
 
@@ -348,7 +378,7 @@ def caustic(f, b, a=0.0):
     y1_ = y1 * np.cos(a) - y2 * np.sin(a)
     y2_ = y1 * np.sin(a) + y2 * np.cos(a)
 
-    return y1_, y2_
+    return y1_, y2
 
 
 def source_zoom(r, x, y, window=3.0):
@@ -374,7 +404,6 @@ def snr_find(image, nlevel, sig=2.0):
 
 
 def lens_plot(lens):
-
     xy = pixels(0.04, 4.0, 0.0, 100)
     fig, (ax1, ax2) = plt.subplots(1, 2)
 
@@ -404,7 +433,6 @@ def lens_plot(lens):
 
     # Add dashed lines through centre
     for a in np.linspace(0.0, np.pi, 21):
-
         x = np.linspace(-4.0, 4.0, 101)
         y = np.zeros_like(x)
         x_ = x * np.cos(-a) - y * np.sin(-a)
@@ -421,3 +449,52 @@ def lens_plot(lens):
     fig.set_size_inches((16, 9.5))
 
     return fig
+
+
+def end_append(a):
+    """
+    Adds the first item of an array to the end
+    (to make continuous line plots)
+    """
+    return np.hstack([a, [a[0]]])
+
+
+def caus_crit(grid, alpha, p, crit_line=True):
+    """
+    Given a deflection angle field and a set of lens parameters,
+    numerically calculates the caustic and critical curves.
+    """
+
+    x1, x2 = grid
+    a1, a2 = alpha
+
+    # Get separation and calculate gradient
+    dx = float(x1[0, 1] - x1[0, 0])
+    a1_1 = np.gradient(a1, dx, axis=1)
+    a2_2 = np.gradient(a2, dx, axis=0)
+    a1_2 = np.gradient(a1, dx, axis=0)
+
+    # Get determinant of Jac. and find zeros
+    det_a = (1.0 - a1_1) * (1.0 - a2_2) - a1_2 ** 2
+    f = (det_a > 0.0).astype('float') * (np.hypot(x1, x2) > 0.1).astype('float')
+    det_mask = (np.gradient(f, axis=0) * np.gradient(f, axis=1)) ** 2 > 0.0
+
+    # Get coordinates of zeros and transorm back to source plane
+    # via deflection angle
+    x1_crit, x2_crit = x1[det_mask], x2[det_mask]
+    x1_caus, x2_caus = tessore_switch((x1_crit, x2_crit),
+                                      p.gmm1, p.gmm2, p.gmm3, p.axro,
+                                      p.mss1, p.mss2, p.mss3, p.posa,
+                                      p.rad1, p.rad2, p.npow,
+                                      trunc=p.trunc)
+
+    # Sort the arrays so line plots are in the correct order
+    ca_sort = np.argsort(np.arctan2(x1_caus, x2_caus))
+    ca_sorted = end_append(x1_caus[ca_sort]), end_append(x2_caus[ca_sort])
+    cc_sort = np.argsort(np.arctan2(x1_crit, x2_crit))
+    cc_sorted = end_append(x1_crit[cc_sort]), end_append(x2_crit[cc_sort])
+
+    if crit_line:
+        return ca_sorted, cc_sorted
+    else:
+        return ca_sorted
