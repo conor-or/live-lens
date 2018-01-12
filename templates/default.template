@@ -62,9 +62,9 @@ class params:
         self.gmm1 = 2.00                # Lens mass distribution inner slope
         self.gmm2 = 2.00                # Lens mass distribution middle slope
         self.gmm3 = 2.00                # Lens mass distribution outer slope
-        self.axro = 0.80             # Lens axis ratio (1 - ellipticity)
-        self.rad1 = 1.00                # Inner break radius
-        self.rad2 = 2.00                 # Outer break radius
+        self.axro = 1.00             # Lens axis ratio (1 - ellipticity)
+        self.rad1 = 3.00                # Inner break radius
+        self.rad2 = 3.00                 # Outer break radius
         self.posa = 0.00                 # Lens position angle
 
         # MCMC Parameters

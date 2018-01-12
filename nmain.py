@@ -9,6 +9,7 @@ from astropy.convolution import Gaussian2DKernel, convolve
 from scipy.optimize import brenth
 from scipy.interpolate import interp1d
 from imp import load_source
+from mpl_toolkits.axes_grid import make_axes_locatable
 
 # Turn off divide by zero warnings
 np.seterr(divide='ignore', invalid='ignore')
@@ -31,16 +32,21 @@ class App:
         # Colourbar menu
         self.cmap = tk.StringVar(value='magma')
         self.detail_color = 'w'
-
         cmenu = tk.Menu(menubar, tearoff=0)
-
         cmenu.add_command(label="Viridis", command=lambda: self.cmap_set(c='viridis'))
         cmenu.add_command(label="Magma", command=lambda: self.cmap_set(c='magma'))
         cmenu.add_command(label="Greyscale", command=lambda: self.cmap_set(c='Greys'))
         cmenu.add_command(label="Jet", command=lambda: self.cmap_set(c='jet'))
         cmenu.add_command(label="Bone", command=lambda: self.cmap_set(c='bone_r'))
-
         menubar.add_cascade(label='Colour', menu=cmenu)
+
+        # Plotting Menu
+        self.plot_type = tk.StringVar(value='img')
+        pmenu = tk.Menu(menubar, tearoff=0)
+        pmenu.add_command(label="Image Plane", command=lambda: self.p_set(c='img'))
+        pmenu.add_command(label="Deflection Angle (Vector)", command=lambda: self.p_set(c='vec'))
+        pmenu.add_command(label="Deflection Angle (Magnitude)", command=lambda: self.p_set(c='mag'))
+        menubar.add_cascade(label='Plotting', menu=pmenu)
 
         menubar.add_command(label="Quit", command=root.quit)
         master.config(menu=menubar)
@@ -172,8 +178,11 @@ class App:
         self.cc_bool = tk.BooleanVar(value=True)
 
         # Initialise image figure --------------------------------------------------------------------------------------
-        self.fig = Figure(figsize=(6, 6))                                       # Open figure object
-        self.ax1 = self.fig.add_subplot(111)                                    # Create axis on figure
+        self.fig = Figure(figsize=(6, 6.2))                                       # Open figure object
+        self.ax1 = self.fig.add_subplot(111)
+        div = make_axes_locatable(self.ax1)
+        self.ax2 = div.append_axes('bottom', '3%', pad=0.0)
+
         self.fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0)      # Fill page with axis
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.image_frame)
@@ -233,9 +242,27 @@ class App:
         # Clear the previous iteration's plot
         self.ax1.clear()
 
-        # Plot the image plane
-        self.ax1.imshow(self.img_noise, extent=[-2, 2, -2, 2],
-                        origin='lower', interpolation='none', cmap=get_cmap(self.cmap.get()))
+        # Plot the main frame
+        if self.plot_type.get() == 'img':
+            cm = self.ax1.imshow(self.img_noise, extent=[-2, 2, -2, 2],
+                                 origin='lower', interpolation='none', cmap=get_cmap(self.cmap.get()))
+
+        elif self.plot_type.get() == 'vec':
+            dx = 5
+            a1, a2 = self.alpha_convert()
+            cm = self.ax1.quiver(self.pix[0][(dx/2)::dx, (dx/2)::dx],
+                                 self.pix[1][(dx/2)::dx, (dx/2)::dx],
+                                 a1[(dx/2)::dx, (dx/2)::dx],
+                                 a2[(dx/2)::dx, (dx/2)::dx],
+                                 np.hypot(a1[(dx/2)::dx, (dx/2)::dx], a2[(dx/2)::dx, (dx/2)::dx]))
+
+        elif self.plot_type.get() == 'mag':
+            a1, a2 = self.alpha_convert()
+            cm = self.ax1.contourf(self.pix[0], self.pix[1], np.hypot(a1, a2), extent=[-2, 2, -2, 2],
+                                  origin='lower', interpolation='none', cmap=get_cmap(self.cmap.get()))
+
+        else:
+            cm = None
 
         # Add the mask
         if self.mask_bool.get():
@@ -266,10 +293,23 @@ class App:
             self.ax1.plot(self.caustic[0], self.caustic[1], ':', color=self.detail_color, lw=1.0)
             self.ax1.plot(self.critcurve[0], self.critcurve[1], ':', color=self.detail_color, lw=1.0)
 
+        # Plot the break radii
+        self.ax1.contour(self.pix[0], self.pix[1],
+                         np.hypot(self.pix[0] * (1.0 - self.lens_sliders[1].get()), self.pix[1]),
+                         levels=[self.lens_sliders2[2].get(), self.lens_sliders3[2].get()],
+                         colors=self.detail_color, alpha=0.2)
+
+        # Add the colorbar
+        self.cbar = self.fig.colorbar(cm, cax=self.ax2, orientation='horizontal')
+        self.ax2.xaxis.set_ticks_position('top')
+        self.ax2.xaxis.label.set_color(self.detail_color)
+        self.ax2.tick_params(axis='x', colors=self.detail_color)
+
         # Formatting
         self.ax1.set(xticks=[], yticks=[], xlim=[-2, 2], ylim=[-2, 2])
         self.ax1.axhline(0.0, color=self.detail_color, linestyle='-', alpha=0.5, lw=1.0)
         self.ax1.axvline(0.0, color=self.detail_color, linestyle='-', alpha=0.5, lw=1.0)
+
         self.canvas.draw()
 
     def update_fast(self, event=None):
@@ -305,6 +345,8 @@ class App:
             pref2 = (3.0 - p['gmm2']) / (3.0 - p['gmm3'])
             rt2 = np.sqrt(p['axro']) * p['rad2']
             self.m3 = rt2 * (pref2 * (p['mss2'] / rt2) ** (p['gmm2'] - 1.0)) ** (1.0 / (p['gmm3'] - 1.0))
+            self.lens_sliders2[1].set(self.m2)
+            self.lens_sliders3[1].set(self.m3)
 
         else:
             self.m2 = self.lens_sliders2[1].get()
@@ -383,7 +425,7 @@ class App:
 
     def alpha_convert(self):
 
-        return self.alpha[0] + self.pix[0], self.alpha[1] + self.pix[1]
+        return self.alpha[0] - self.pix[0], self.alpha[1] - self.pix[1]
 
     def savefig(self):
 
@@ -400,6 +442,15 @@ class App:
 
         self.update_plots()
 
+    def p_set(self, c='viridis'):
+
+        self.plot_type.set(c)
+        if c == 'vec':
+            self.detail_color = 'k'
+        else:
+            self.detail_color = 'w'
+        self.update_plots()
+
     def caus_crit(self):
         """
         Given a deflection angle field and a set of lens parameters,
@@ -407,7 +458,8 @@ class App:
         """
 
         x1, x2 = self.pix
-        a1, a2 = self.alpha_convert()
+        a1_, a2_ = self.alpha_convert()
+        a1, a2 = a1_ + 2 * x1, a2_ + 2 * x2
 
         # Get separation and calculate gradient
         dx = float(x1[0, 1] - x1[0, 0])
