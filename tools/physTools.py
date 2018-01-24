@@ -71,8 +71,11 @@ def tessore(grid, g, f, m, a, trunc=False, r0=0.5):
     # Define terms for the angular part
     h1, h2, h3 = 0.5, 1.0 - t / 2.0, 2.0 - t / 2.0
 
-    # Calculate normalisation from the EINSTEIN RADIUS
-    norm = (1.0 / f) * (m ** 2.0)
+    # Calculate normalisation
+    if trunc and (r0 < m):
+        norm = (1.0 / f) * (m ** 2.0) * ((m / r0) ** (2.0 - t))
+    else:
+        norm = (1.0 / f) * (m ** 2.0)
 
     # Radial part
     radial = (1.0 / z) * ((m / r_) ** (t - 2.0))
