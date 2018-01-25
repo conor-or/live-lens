@@ -116,13 +116,13 @@ class App:
         self.plaw_slider = tk.Scale(self.plaw_sliders_frame, label='No. P. Laws',
                                     from_=1, to=3, orient=tk.HORIZONTAL, resolution=1)
         self.plaw_slider.bind("<ButtonRelease-1>", self.update_slow)
-        self.plaw_slider.set(1)
+        self.plaw_slider.set(self.p.npow)
         self.plaw_slider.pack()
 
         # Properties of lens sliders -----------------------------------------------------------------------------------
-        llabel = ['Gamma', 'Ellipticty', 'Total Mass', 'Position Angle', 'Trunc. Radius']    # Parameter names
+        llabel = ['Gamma', 'Ellipticty', 'Einstein Rad.', 'Position Angle', 'Trunc. Radius']    # Parameter names
         lmin = [1.1, 0.0, 0.1, -np.pi, 0.1]                                      # Minimum values
-        lmax = [2.99, 0.9, 3.0, np.pi, 3.0]                                      # Maximum values
+        lmax = [2.98, 0.9, 3.0, np.pi, 3.0]                                      # Maximum values
         ldef = [self.p.gmm1, 1.0 - self.p.axro, self.p.mss1, self.p.posa, self.p.rad1]   # Default values (from template file)
 
         # Initialise lens sliders
@@ -141,9 +141,9 @@ class App:
             l.pack()
 
         # Properties of lens 2 sliders ---------------------------------------------------------------------------------
-        llabel = ['Gamma', 'Total Mass', 'Trunc. Radius']
+        llabel = ['Gamma', 'Einstein Rad.', 'Trunc. Radius']
         lmin = [1.10, 0.1, 0.1]                                      # Minimum values
-        lmax = [2.99, 3.0, 3.0]                                      # Maximum values
+        lmax = [2.98, 3.0, 3.0]                                      # Maximum values
         ldef = [self.p.gmm2, self.p.mss2, self.p.rad2]               # Default values (from template file)
 
         # Initialise lens sliders
@@ -160,9 +160,9 @@ class App:
             l.pack()
 
         # Properties of lens 3 sliders ---------------------------------------------------------------------------------
-        llabel = ['Gamma', 'Total Mass']
+        llabel = ['Gamma', 'Einstein Rad.']
         lmin = [1.10, 0.1, 0.1]                                      # Minimum values
-        lmax = [2.99, 3.0, 3.0]                                      # Maximum values
+        lmax = [2.98, 3.0, 3.0]                                      # Maximum values
         ldef = [self.p.gmm3, self.p.mss3]               # Default values (from template file)
 
         # Initialise lens sliders

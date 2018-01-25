@@ -40,7 +40,7 @@ def sersic(grid, srcx, srcy, srcr, srcb, srcm):
     return srcb * np.exp(- sersic_b(srcm) * (r / srcr) ** (1.0 / srcm))
 
 
-def tessore(grid, g, f, m, a, trunc=False, r0=0.5):
+def tessore(grid, g, f, m, a, trunc=False, r0=0.5, c=1.0):
     """
     Using Tessore's method (Tessore, 2016), calculates the deflection
     angle on the grid given a set of lens parameters in p.
@@ -55,7 +55,7 @@ def tessore(grid, g, f, m, a, trunc=False, r0=0.5):
     yy = x1 * np.sin(a) + x2 * np.cos(a)
 
     # Define the complex plane
-    z = (xx + 1j * yy)  # / np.sqrt(f)
+    z = (xx + 1j * yy)
 
     # Define the elliptical and circular radial coordinates
     rootf = f ** 0.5
@@ -71,11 +71,8 @@ def tessore(grid, g, f, m, a, trunc=False, r0=0.5):
     # Define terms for the angular part
     h1, h2, h3 = 0.5, 1.0 - t / 2.0, 2.0 - t / 2.0
 
-    # Calculate normalisation
-    if trunc and (r0 < m):
-        norm = (1.0 / f) * (m ** 2.0) * ((m / r0) ** (2.0 - t))
-    else:
-        norm = (1.0 / f) * (m ** 2.0)
+    # Calculate normalisation and apply correction
+    norm = (1.0 / f) * (m ** 2.0) * c
 
     # Radial part
     radial = (1.0 / z) * ((m / r_) ** (t - 2.0))
@@ -116,14 +113,22 @@ def tessore_double(grid, g1, g2, f, m1, m2, a, r0):
     with separate slopes, broken at r0
     """
 
+    correction = 1.0
+    if r0 < m1:
+        correction1 = ((m1 / r0) ** (3.0 - g1))
+        correction2 = ((m1 / r0) ** (3.0 - g2))
+    else:
+        correction1 = 1.0
+        correction2 = 1.0
+
     b1 = m1
     # pref = (3.0 - g1) / (3.0 - g2)
     # rt = np.sqrt(f) * r0
     b2 = m2 # rt * (pref * (b1 / rt) ** (g1 - 1.0)) ** (1.0 / (g2 - 1.0))
 
-    t11, t12 = tessore(grid, g1, f, m1, a, trunc=True, r0=r0)
-    t21, t22 = tessore(grid, g2, f, m2, a, trunc=False)
-    t31, t32 = tessore(grid, g2, f, m2, a, trunc=True, r0=r0)
+    t11, t12 = tessore(grid, g1, f, m1, a, trunc=True, r0=r0, c=correction1)
+    t21, t22 = tessore(grid, g2, f, m2, a, trunc=False, c=correction)
+    t31, t32 = tessore(grid, g2, f, m2, a, trunc=True, r0=r0, c=correction2)
 
     a1 = t11 + (t21 - t31)
     a2 = t12 + (t22 - t32)
@@ -166,11 +171,24 @@ def tessore_switch(grid, g1, g2, g3, f, m1, m2, m3, a, r1, r2,
     Chooses the number of power laws to use based on npow
     """
     if npow == 1:
-        return tessore(grid, g1, f, m1, a, trunc=trunc, r0=r1)
+        if r1 > m1:
+            correction = 1.0
+        else:
+            correction = ((m1 / r1) ** (3.0 - g1))
+        return tessore(grid, g1, f, m1, a, trunc=trunc, r0=r1, c=correction)
     elif npow == 2:
         return tessore_double(grid, g1, g2, f, m1, m2, a, r1)
     elif npow == 3:
         return tessore_triple(grid, g1, g2, g3, f, m1, m2, m3, a, r1, r2)
+
+
+def norm_int(t1, t2, g, b):
+
+    def func(x):
+
+        return (b ** (g - 1.0)) * (x ** (3.0 - g)) / (3.0 - g)
+
+    return func(t2) - func(t1)
 
 
 def point_mass(grid, m):

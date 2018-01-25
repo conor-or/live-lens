@@ -34,12 +34,12 @@ class params:
         self.active_params = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
         # Number of power laws to use
-        self.npow = 1
+        self.npow = 2
 
         # Observation parameters
 
         self.pwd = 00.04                        # Pixel width (arcsec)
-        self.snr = 100                          # Integrated SNR
+        self.snr = 300                          # Integrated SNR
         self.sub = 10                           # Max. sub-pixelisation factor
         self.wid = 4.0                          # Width of field of view
         self.noise = 1E-2                       # Noise per pixel (if not using fixed SNR)
@@ -62,8 +62,8 @@ class params:
         self.gmm1 = 2.00                # Lens mass distribution inner slope
         self.gmm2 = 2.00                # Lens mass distribution middle slope
         self.gmm3 = 2.00                # Lens mass distribution outer slope
-        self.axro = 0.80             # Lens axis ratio (1 - ellipticity)
-        self.rad1 = 0.80                # Inner break radius
+        self.axro = 1.00             # Lens axis ratio (1 - ellipticity)
+        self.rad1 = 0.50                # Inner break radius
         self.rad2 = 3.00                 # Outer break radius
         self.posa = 0.00                 # Lens position angle
 
