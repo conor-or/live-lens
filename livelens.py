@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('TkAgg')
 import Tkinter as tk
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
