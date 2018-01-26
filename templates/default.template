@@ -47,8 +47,8 @@ class params:
 
         # Source parameters
 
-        self.srcx = 0.00                # Source 1 x position (arcsec)
-        self.srcy = 0.00                # Source 1 y position (arcsec)
+        self.srcx = 0.10                # Source 1 x position (arcsec)
+        self.srcy = 0.10                # Source 1 y position (arcsec)
         self.srcr = 0.10                # Source 1 Eff. Rad. (arcsec)
         self.srcb = 1.00                # Source 1 peak brightness
         self.srcm = 2.00                # Source Sersic index
@@ -62,7 +62,7 @@ class params:
         self.gmm1 = 2.00                # Lens mass distribution inner slope
         self.gmm2 = 2.00                # Lens mass distribution middle slope
         self.gmm3 = 2.00                # Lens mass distribution outer slope
-        self.axro = 1.00             # Lens axis ratio (1 - ellipticity)
+        self.axro = 0.80             # Lens axis ratio (1 - ellipticity)
         self.rad1 = 0.50                # Inner break radius
         self.rad2 = 3.00                 # Outer break radius
         self.posa = 0.00                 # Lens position angle
