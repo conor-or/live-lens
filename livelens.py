@@ -23,8 +23,12 @@ class App:
         Starts the app and contains the main loop
         """
 
+        txcol = '#f9f9f9'
+        bgcol = '#2e3642'
+        fgcol = '#525f72'
+
         # Main frame
-        frame = tk.Frame(master)
+        frame = tk.Frame(master, bg=bgcol)
 
         # Top level menu
         menubar = tk.Menu(master)
@@ -55,39 +59,41 @@ class App:
         # Initialise frames --------------------------------------------------------------------------------------------
 
         # Sliders
-        self.sliders_frame = tk.Frame(frame, bg='grey')
-        self.sliders_frame.grid(row=0, column=1, padx=10)
+        self.sliders_frame = tk.Frame(frame, bg=bgcol)
+        self.sliders_frame.grid(row=0, column=1, padx=30)
 
         # Power law num. slider
-        self.plaw_sliders_frame = tk.Frame(self.sliders_frame)
-        self.plaw_sliders_frame.grid(row=0, column=0, padx=5, pady=5, ipadx=10, ipady=10, sticky='NW')
+        self.plaw_sliders_frame = tk.Frame(self.sliders_frame, bg=bgcol)
+        self.plaw_sliders_frame.grid(row=0, column=0, padx=0, pady=20, ipadx=10, ipady=10, sticky='NW')
 
         # Source parameter sliders
-        self.source_sliders_frame = tk.Frame(self.sliders_frame)
-        self.source_sliders_frame.grid(row=1, column=0, padx=5, ipadx=10, ipady=10, sticky='NW')
+        self.source_sliders_frame = tk.Frame(self.sliders_frame, bg=bgcol)
+        self.source_sliders_frame.grid(row=1, column=0, padx=0, ipadx=10, ipady=10, sticky='NW')
 
         # Lens parameter sliders
-        self.lens_sliders_frame = tk.Frame(self.sliders_frame)
-        self.lens_sliders_frame.grid(row=1, column=1, padx=5, ipadx=10, ipady=10, sticky='NW')
+        self.lens_sliders_frame = tk.Frame(self.sliders_frame, bg=bgcol)
+        self.lens_sliders_frame.grid(row=1, column=1, padx=0, ipadx=10, ipady=10, sticky='NW')
 
         # Lens 2 parameter sliders
-        self.lens_sliders2_frame = tk.Frame(self.sliders_frame)
-        self.lens_sliders2_frame.grid(row=1, column=2, padx=5, ipadx=10, ipady=10, sticky='NW')
+        self.lens_sliders2_frame = tk.Frame(self.sliders_frame, bg=bgcol)
+        self.lens_sliders2_frame.grid(row=1, column=2, padx=0, ipadx=10, ipady=10, sticky='NW')
 
         # Lens 3 parameter sliders
-        self.lens_sliders3_frame = tk.Frame(self.sliders_frame)
-        self.lens_sliders3_frame.grid(row=1, column=3, padx=5, ipadx=10, ipady=10, sticky='NW')
+        self.lens_sliders3_frame = tk.Frame(self.sliders_frame, bg=bgcol)
+        self.lens_sliders3_frame.grid(row=1, column=3, padx=0, ipadx=10, ipady=10, sticky='NW')
 
         # Image parameter frame
-        self.image_frame = tk.Frame(frame, bg='grey')
+        self.image_frame = tk.Frame(frame, bg=bgcol)
         self.image_frame.grid(row=0, column=0)
 
         # Image parameter sliders
-        self.image_sliders = tk.Frame(self.sliders_frame)
-        self.image_sliders.grid(row=2, column=0, sticky='W', padx=5, pady=5, ipadx=10, ipady=10)
+        self.image_sliders = tk.Frame(self.sliders_frame, bg=bgcol)
+        self.image_sliders.grid(row=0, column=1, sticky='NW', padx=0, pady=20, ipadx=10, ipady=10)
+        self.image_sliders2 = tk.Frame(self.sliders_frame, bg=bgcol)
+        self.image_sliders2.grid(row=0, column=2, sticky='NW', padx=0, pady=20, ipadx=10, ipady=10)
 
         # Load the default parameters
-        self.p = load_source('', environ['LLPATH'] + '/templates/default.template').params()
+        self.p = load_source('', './templates/default.template').params()
 
         # Define pixel grid
         self.pix = pixels(self.p.pwd, self.p.wid, 0.0, self.p.n)
@@ -99,10 +105,10 @@ class App:
         sdef = [self.p.srcx, self.p.srcy, self.p.srcr, self.p.srcm]         # Default values (from template file)
 
         # Initialise source sliders  -----------------------------------------------------------------------------------
-        self.source_text = tk.Label(self.source_sliders_frame, text='Source Params')
+        self.source_text = tk.Label(self.source_sliders_frame, text='Source Params', bg=bgcol, fg=txcol)
         self.source_sliders = [
             tk.Scale(self.source_sliders_frame, from_=smin[i], to=smax[i], label=slabel[i],
-                     command=self.update_fast, resolution=0.02, orient=tk.HORIZONTAL)
+                     command=self.update_fast, resolution=0.02, orient=tk.HORIZONTAL, bg=bgcol, fg=txcol)
             for i in range(len(slabel))
         ]
 
@@ -113,8 +119,8 @@ class App:
             s.pack()            # Pack sliders
 
         # Initialise power law slider ----------------------------------------------------------------------------------
-        self.plaw_slider = tk.Scale(self.plaw_sliders_frame, label='No. P. Laws',
-                                    from_=1, to=3, orient=tk.HORIZONTAL, resolution=1)
+        self.plaw_slider = tk.Scale(self.plaw_sliders_frame, label='No. P. Laws', bg=bgcol,
+                                    from_=1, to=3, orient=tk.HORIZONTAL, resolution=1, fg=txcol)
         self.plaw_slider.bind("<ButtonRelease-1>", self.update_slow)
         self.plaw_slider.set(self.p.npow)
         self.plaw_slider.pack()
@@ -126,10 +132,10 @@ class App:
         ldef = [self.p.gmm1, 1.0 - self.p.axro, self.p.mss1, self.p.posa, self.p.rad1]   # Default values (from template file)
 
         # Initialise lens sliders
-        self.lens_text = tk.Label(self.lens_sliders_frame, text='Inner Params')
+        self.lens_text = tk.Label(self.lens_sliders_frame, text='Inner Params', bg=bgcol, fg=txcol)
         self.lens_sliders = [
-            tk.Scale(self.lens_sliders_frame, from_=lmin[i], to=lmax[i], label=llabel[i],
-                     resolution=0.02, orient=tk.HORIZONTAL)
+            tk.Scale(self.lens_sliders_frame, from_=lmin[i], to=lmax[i], label=llabel[i], bg=bgcol,
+                     resolution=0.02, orient=tk.HORIZONTAL, fg=txcol)
             for i in range(len(llabel))
         ]
 
@@ -147,10 +153,10 @@ class App:
         ldef = [self.p.gmm2, self.p.mss2, self.p.rad2]               # Default values (from template file)
 
         # Initialise lens sliders
-        self.lens_text2 = tk.Label(self.lens_sliders2_frame, text='Middle Params')
+        self.lens_text2 = tk.Label(self.lens_sliders2_frame, text='Middle Params', bg=bgcol, fg=txcol)
         self.lens_sliders2 = [
             tk.Scale(self.lens_sliders2_frame, from_=lmin[i], to=lmax[i], label=llabel[i],
-                     resolution=0.02, orient=tk.HORIZONTAL)
+                     resolution=0.02, orient=tk.HORIZONTAL, bg=bgcol, fg=txcol)
             for i in range(len(llabel))]
 
         self.lens_text2.pack()
@@ -166,10 +172,10 @@ class App:
         ldef = [self.p.gmm3, self.p.mss3]               # Default values (from template file)
 
         # Initialise lens sliders
-        self.lens_text3 = tk.Label(self.lens_sliders3_frame, text='Outer Params')
+        self.lens_text3 = tk.Label(self.lens_sliders3_frame, text='Outer Params', bg=bgcol, fg=txcol)
         self.lens_sliders3 = [
             tk.Scale(self.lens_sliders3_frame, from_=lmin[i], to=lmax[i], label=llabel[i],
-                     resolution=0.02, orient=tk.HORIZONTAL)
+                     resolution=0.02, orient=tk.HORIZONTAL, bg=bgcol, fg=txcol)
             for i in range(len(llabel))]
 
         self.lens_text3.pack()
@@ -182,7 +188,7 @@ class App:
 
         # SNR Level
         self.snr_slider = tk.Scale(self.image_sliders, from_=10.0, to=300, label='SNR in Mask',
-                                   resolution=1.0, orient=tk.HORIZONTAL, command=self.update_plots)
+                                   resolution=1.0, orient=tk.HORIZONTAL, command=self.update_plots, bg=bgcol, fg=txcol)
         self.snr_slider.set(self.p.snr)
         self.snr_slider.pack()
         self.mask_bool = tk.BooleanVar(value=False)
@@ -211,33 +217,33 @@ class App:
         # # Continuity button
         self.cont_bool = tk.BooleanVar(value=True)
         self.cont_button = tk.Checkbutton(self.lens_sliders2_frame, variable=self.cont_bool,
-                                          onvalue=True, offvalue=False, justify='left',
-                                          text='Mass Continuity', command=self.update_slow)
+                                          onvalue=True, offvalue=False, justify='left', fg=txcol,
+                                          text='Mass Continuity', command=self.update_slow, bg=bgcol)
         self.cont_button.pack()
 
         # Perform first lens calculations
         self.update_slow()
 
         # Mask button
-        self.mask_button = tk.Checkbutton(self.image_sliders, variable=self.mask_bool,
-                                          onvalue=True, offvalue=False, justify='left',
-                                          text='Show Mask', command=self.update_plots)
+        self.mask_button = tk.Checkbutton(self.image_sliders2, variable=self.mask_bool,
+                                          onvalue=True, offvalue=False, justify='left', fg=txcol,
+                                          text='Show Mask', command=self.update_plots, bg=bgcol)
         self.mask_button.pack()
 
         # Elliptical Radiii Button
-        self.radii_button = tk.Checkbutton(self.image_sliders, variable=self.radii_bool,
-                                           onvalue=True, offvalue=False, justify='left',
-                                           text='Show Radii', command=self.update_plots)
+        self.radii_button = tk.Checkbutton(self.image_sliders2, variable=self.radii_bool,
+                                           onvalue=True, offvalue=False, justify='left', fg=txcol,
+                                           text='Show Radii', command=self.update_plots, bg=bgcol)
         self.radii_button.pack()
 
         # Caustic button
-        self.cc_button = tk.Checkbutton(self.image_sliders, variable=self.cc_bool,
-                                        onvalue=True, offvalue=False, justify='left',
-                                        text='Show CC/Ca.', command=self.update_plots)
+        self.cc_button = tk.Checkbutton(self.image_sliders2, variable=self.cc_bool,
+                                        activeforeground=txcol, disabledforeground=txcol,
+                                        onvalue=True, offvalue=False, justify='left', fg=txcol,
+                                        text='Show CC/Ca.', command=self.update_plots, bg=bgcol)
         self.cc_button.pack()
 
         # Pack the whole frame
-        frame.config(bg='grey')
         frame.pack()
 
     def update_plots(self, event=None):
