@@ -16,10 +16,11 @@ astropy
 To install:
 ```
 $ git clone https://github.com/conor-or/live-lens
+$ cd live-lens
+$ pip install -r requirements.txt
 ```
 
 To run:
 ```
-$ cd live-lens
-$ python main.py
+$ python livelens.py
 ```
