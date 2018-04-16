@@ -1,12 +1,14 @@
 import sys
-import numpy as np
-import matplotlib
-matplotlib.use('Qt5Agg')
+from PyQt5.QtWidgets import (QApplication, QWidget, QToolTip, QPushButton,
+                             QDesktopWidget, QMainWindow, QAction, qApp,
+                             QTextEdit, QHBoxLayout, QVBoxLayout, QGridLayout,
+                             QLCDNumber, QSlider, QSizePolicy)
+from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
-from PyQt5.QtWidgets import (QWidget, QDesktopWidget, QApplication,
-                             QGridLayout, QMainWindow, QSizePolicy)
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class LiveLens(QMainWindow):
@@ -14,55 +16,67 @@ class LiveLens(QMainWindow):
     def __init__(self):
 
         super().__init__()
-        self.main_widget = QWidget(self)
+
         self.init_ui()
 
     def init_ui(self):
 
-        self.resize(800, 400)
+        # Set up the central widget and grid layout
+        main = QWidget(self)
+        self.setCentralWidget(main)
+        layout = QGridLayout()
+        main.setLayout(layout)
+
+        # Set font for tool tips
+        QToolTip.setFont(QFont('SansSerif', 10))
+
+        img = PlotCanvas(self)
+        source_sliders = QWidget(self)
+        source_sliders_layout = QVBoxLayout()
+
+        for i in range(5):
+            slider = QSlider(Qt.Horizontal, source_sliders)
+            source_sliders_layout.addWidget(slider)
+
+        layout.addWidget(img, 0, 0)
+        layout.addWidget(source_sliders, 0, 1)
+
+        # self.resize()
         self.center()
-
         self.setWindowTitle('Live Lens')
-
-        grid = QGridLayout()
-        self.main_widget.setLayout(grid)
-        sc = ImageCanvas(self.main_widget, width=5, height=5, dpi=100)
-        grid.addWidget(sc, 0, 0)
-
-        self.main_widget.setFocus()
-        self.setCentralWidget(self.main_widget)
 
         self.show()
 
     def center(self):
-
         qr = self.frameGeometry()
         cp = QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
 
-class ImageCanvas(FigureCanvas):
-    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
+class PlotCanvas(FigureCanvas):
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
+    def __init__(self, parent=None, width=5, height=5, dpi=100):
+
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
-
-        self.compute_initial_figure()
 
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
 
-        FigureCanvas.setSizePolicy(self,
-                                   QSizePolicy.Expanding,
-                                   QSizePolicy.Expanding)
+        # FigureCanvas.setSizePolicy(self,
+        #                            QSizePolicy.Expanding,
+        #                            QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
+        self.plot()
 
-    def compute_initial_figure(self):
+    def plot(self):
 
-        img = np.random.normal(size=(100, 100))
-        self.axes.imshow(img, extent=[-2, 2, -2, 2], interpolation='none', origin='lower')
+        data = np.random.normal(size=(100, 100))
+        ax = self.figure.add_subplot(111)
+        ax.imshow(data, extent=[-2, 2, -2, 2], interpolation='none',
+                  cmap=plt.get_cmap('plasma'))
+        self.draw()
 
 if __name__ == '__main__':
 
