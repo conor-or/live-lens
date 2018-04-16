@@ -1,0 +1,131 @@
+"""
+
+    Input Parameter File
+
+    lens-mcmc
+
+    Conor O'Riordan
+    Oct 2016
+
+    To add or remove parameters, fill the list
+    active_params with the relevant indices:
+
+    00      Source X
+    01      Source Y
+    02      Source Eff. Rad.
+    03      Source Peak Brightness
+    04      Source Sersic Index
+    05      Mass 1
+    06      Mass 2
+    07      Mass 3
+    08      Gamma 1
+    09      Gamma 2
+    10      Gamma 3
+    11      Ellipticity
+    12      Lens Position Angle
+
+"""
+
+class params:
+
+    def __init__(self):
+
+        # Assign the active parameters, rest will be fixed
+        self.active_params = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+        # Number of power laws to use
+        self.npow = 2
+
+        # Observation parameters
+
+        self.pwd = 00.04                        # Pixel width (arcsec)
+        self.snr = 300                          # Integrated SNR
+        self.sub = 10                           # Max. sub-pixelisation factor
+        self.wid = 4.0                          # Width of field of view
+        self.noise = 1E-2                       # Noise per pixel (if not using fixed SNR)
+        self.n = int(self.wid / self.pwd)       # Number of pixels along side
+
+        # Source parameters
+
+        self.srcx = 0.10                # Source 1 x position (arcsec)
+        self.srcy = 0.10                # Source 1 y position (arcsec)
+        self.srcr = 0.10                # Source 1 Eff. Rad. (arcsec)
+        self.srcb = 1.00                # Source 1 peak brightness
+        self.srcm = 2.00                # Source Sersic index
+
+        # Lens parameters
+
+        self.trunc = True               # Truncation on/off
+        self.mss1 = 1.20                # Lens total mass OR Einstein radius
+        self.mss2 = 1.20
+        self.mss3 = 1.20
+        self.gmm1 = 2.00                # Lens mass distribution inner slope
+        self.gmm2 = 2.00                # Lens mass distribution middle slope
+        self.gmm3 = 2.00                # Lens mass distribution outer slope
+        self.axro = 1.00             # Lens axis ratio (1 - ellipticity)
+        self.rad1 = 0.50                # Inner break radius
+        self.rad2 = 3.00                 # Outer break radius
+        self.posa = 0.00                 # Lens position angle
+
+        # MCMC Parameters
+
+        self.n_b = 300                   # Number of burn-in steps
+        self.fac = 5                    # Factor by which to increase walkers
+        self.n_w = 40                   # Number of (initial) walkers
+        self.n_s = 150                   # Number of samples
+
+        # MCMC Flat Prior limits
+
+        self.p_srcx = -0.1, 0.6         # Source 1 x position
+        self.p_srcy = -0.1, 0.6  	    # Source 1 y position
+        self.p_srcr = 0.0, 0.2 	        # Source 1 Eff. Rad. (arcsec)
+        self.p_srcb = 0.8, 1.2 	        # Source 1 Peak brightness
+        self.p_srcm = 0.0, 3.0          # Source sersic index
+
+        self.p_mss1 = 0.1, 2.9 	        # Lens total mass
+        self.p_mss2 = 0.1, 2.9 	        # Lens total mass
+        self.p_mss3 = 0.1, 2.9 	        # Lens total mass
+        self.p_gmm1 = 1.5, 2.5  	    # Lens mass distribution inner slope
+        self.p_gmm2 = 1.5, 2.5  	    # Lens mass distribution outer slope
+        self.p_gmm3 = 1.5, 2.5  	    # Lens mass distribution outer slope
+        self.p_axro = 0.10, 1.0  	    # Lens axis ratio
+        self.p_posa = -180.0, 180.0     # Lens position angle
+
+        # MCMC Starting Gaussian widths
+
+        self.w_srcx = 0.01              # Source 1 x position
+        self.w_srcy = 0.01  	        # Source 1 y position
+        self.w_srcr = 0.02	            # Source 1 Eff. Rad. (arcsec)
+        self.w_srcb = 0.05	            # Source 1 Peak brightness
+        self.w_srcm = 0.05              # Source sersic index
+
+        self.w_mss1 = 0.01              # Lens total mass
+        self.w_mss2 = 0.01              # Lens total mass
+        self.w_mss3 = 0.01              # Lens total mass
+        self.w_gmm1 = 0.05	            # Lens mass distribution inner slope
+        self.w_gmm2 = 0.05	            # Lens mass distribution outer slope
+        self.w_gmm3 = 0.05	            # Lens mass distribution outer slope
+        self.w_axro = 0.05	            # Lens axis ratio
+        self.w_posa = 1.00              # Lens position angle
+
+        # Vector versions for easy importing
+
+        self.vectorize = [self.srcx, self.srcy, self.srcr,
+                          self.srcb, self.srcm,
+                          self.mss1, self.mss2, self.mss3,
+                          self.gmm1, self.gmm2, self.gmm3,
+                          self.axro, self.posa]
+
+        self.priors = [self.p_srcx, self.p_srcy, self.p_srcr,
+                       self.p_srcb, self.p_srcm,
+                       self.p_mss1, self.p_mss2, self.p_mss3,
+                       self.p_gmm1, self.p_gmm2, self.p_gmm3,
+                       self.p_axro, self.p_posa]
+
+        self.mcmc = [self.n_b, self.fac, self.n_w, self.n_s]
+
+        self.widths = [self.w_srcx, self.w_srcy, self.w_srcr,
+                       self.w_srcb, self.w_srcm,
+                       self.w_mss1, self.w_mss2, self.w_mss3,
+                       self.w_gmm1, self.w_gmm2, self.w_gmm3,
+                       self.w_axro, self.w_posa]
