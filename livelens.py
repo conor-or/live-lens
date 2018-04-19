@@ -1,18 +1,20 @@
 import matplotlib
 matplotlib.use('TkAgg')
-import Tkinter as tk
+import tkinter as tk
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from matplotlib import gridspec
 from matplotlib.pyplot import get_cmap
-from tools.lensTools import pixels, tessore_switch, end_append
-from tools.physTools import sersic, tessore
+from tools.lensTools import pixels, deflection_switch, end_append
+from tools.physTools import sersic, deflection
 from astropy.convolution import Gaussian2DKernel, convolve
 from scipy.optimize import brenth
 from scipy.interpolate import interp1d
 from imp import load_source
 from os import environ
 from mpl_toolkits.axes_grid import make_axes_locatable
+from matplotlib.pyplot import subplot
 
 # Turn off divide by zero warnings
 np.seterr(divide='ignore', invalid='ignore')
@@ -25,12 +27,12 @@ class App:
         Starts the app and contains the main loop
         """
 
-        txcol = '#f9f9f9'
-        bgcol = '#2e3642'
-        fgcol = '#525f72'
+        self.txcol = '#f9f9f9'
+        self.bgcol = '#2e3642'
+        self.fgcol = '#525f72'
 
         # Main frame
-        frame = tk.Frame(master, bg=bgcol)
+        frame = tk.Frame(master, bg=self.bgcol)
 
         # Top level menu
         menubar = tk.Menu(master)
@@ -61,38 +63,34 @@ class App:
         # Initialise frames --------------------------------------------------------------------------------------------
 
         # Sliders
-        self.sliders_frame = tk.Frame(frame, bg=bgcol)
+        self.sliders_frame = tk.Frame(frame, bg=self.bgcol)
         self.sliders_frame.grid(row=0, column=1, padx=30)
 
         # Power law num. slider
-        self.plaw_sliders_frame = tk.Frame(self.sliders_frame, bg=bgcol)
-        self.plaw_sliders_frame.grid(row=0, column=0, padx=0, pady=20, ipadx=10, ipady=10, sticky='NW')
+        self.plaw_sliders_frame = tk.Frame(self.sliders_frame, bg=self.bgcol)
+        self.plaw_sliders_frame.grid(row=0, column=0, padx=0, pady=20, ipadx=10, ipady=10, sticky='N')
 
         # Source parameter sliders
-        self.source_sliders_frame = tk.Frame(self.sliders_frame, bg=bgcol)
-        self.source_sliders_frame.grid(row=1, column=0, padx=0, ipadx=10, ipady=10, sticky='NW')
+        self.source_sliders_frame = tk.Frame(self.sliders_frame, bg=self.bgcol)
+        self.source_sliders_frame.grid(row=1, column=0, padx=0, ipadx=10, ipady=10, sticky='N')
 
         # Lens parameter sliders
-        self.lens_sliders_frame = tk.Frame(self.sliders_frame, bg=bgcol)
-        self.lens_sliders_frame.grid(row=1, column=1, padx=0, ipadx=10, ipady=10, sticky='NW')
+        self.lens_sliders_frame = tk.Frame(self.sliders_frame, bg=self.bgcol)
+        self.lens_sliders_frame.grid(row=1, column=1, padx=0, ipadx=10, ipady=10, sticky='N')
 
-        # Lens 2 parameter sliders
-        self.lens_sliders2_frame = tk.Frame(self.sliders_frame, bg=bgcol)
-        self.lens_sliders2_frame.grid(row=1, column=2, padx=0, ipadx=10, ipady=10, sticky='NW')
-
-        # Lens 3 parameter sliders
-        self.lens_sliders3_frame = tk.Frame(self.sliders_frame, bg=bgcol)
-        self.lens_sliders3_frame.grid(row=1, column=3, padx=0, ipadx=10, ipady=10, sticky='NW')
+        # Lens parameter sliders
+        self.lens_sliders_frame2 = tk.Frame(self.sliders_frame, bg=self.bgcol)
+        self.lens_sliders_frame2.grid(row=1, column=2, padx=0, ipadx=10, ipady=10, sticky='N')
 
         # Image parameter frame
-        self.image_frame = tk.Frame(frame, bg=bgcol)
+        self.image_frame = tk.Frame(frame, bg=self.bgcol)
         self.image_frame.grid(row=0, column=0)
 
         # Image parameter sliders
-        self.image_sliders = tk.Frame(self.sliders_frame, bg=bgcol)
-        self.image_sliders.grid(row=0, column=1, sticky='NW', padx=0, pady=20, ipadx=10, ipady=10)
-        self.image_sliders2 = tk.Frame(self.sliders_frame, bg=bgcol)
-        self.image_sliders2.grid(row=0, column=2, sticky='NW', padx=0, pady=20, ipadx=10, ipady=10)
+        self.image_sliders = tk.Frame(self.sliders_frame, bg=self.bgcol)
+        self.image_sliders.grid(row=0, column=1, sticky='N', padx=0, pady=20, ipadx=10, ipady=10)
+        self.image_sliders2 = tk.Frame(self.sliders_frame, bg=self.bgcol)
+        self.image_sliders2.grid(row=0, column=2, sticky='N', padx=0, pady=20, ipadx=10, ipady=10)
 
         # Load the default parameters
         self.p = load_source('', './templates/default.template').params()
@@ -107,10 +105,11 @@ class App:
         sdef = [self.p.srcx, self.p.srcy, self.p.srcr, self.p.srcm]         # Default values (from template file)
 
         # Initialise source sliders  -----------------------------------------------------------------------------------
-        self.source_text = tk.Label(self.source_sliders_frame, text='Source Params', bg=bgcol, fg=txcol)
+        self.source_text = tk.Label(self.source_sliders_frame, text='Source Params', bg=self.bgcol, fg=self.txcol)
         self.source_sliders = [
             tk.Scale(self.source_sliders_frame, from_=smin[i], to=smax[i], label=slabel[i],
-                     command=self.update_fast, resolution=0.02, orient=tk.HORIZONTAL, bg=bgcol, fg=txcol)
+                     command=self.update, resolution=0.02, orient=tk.HORIZONTAL,
+                     bg=self.bgcol, fg=self.txcol)
             for i in range(len(slabel))
         ]
 
@@ -121,76 +120,59 @@ class App:
             s.pack()            # Pack sliders
 
         # Initialise power law slider ----------------------------------------------------------------------------------
-        self.plaw_slider = tk.Scale(self.plaw_sliders_frame, label='No. P. Laws', bg=bgcol,
-                                    from_=1, to=3, orient=tk.HORIZONTAL, resolution=1, fg=txcol)
-        self.plaw_slider.bind("<ButtonRelease-1>", self.update_slow)
+        self.plaw_slider = tk.Scale(self.plaw_sliders_frame, label='No. P. Laws', bg=self.bgcol,
+                                    from_=1, to=3, orient=tk.HORIZONTAL, resolution=1,
+                                    command=self.update, fg=self.txcol)
         self.plaw_slider.set(self.p.npow)
         self.plaw_slider.pack()
 
         # Properties of lens sliders -----------------------------------------------------------------------------------
-        llabel = ['Gamma', 'Ellipticty', 'Einstein Rad.', 'Position Angle', 'Trunc. Radius']    # Parameter names
-        lmin = [1.1, 0.0, 0.1, -np.pi, 0.1]                                      # Minimum values
-        lmax = [2.98, 0.9, 3.0, np.pi, 3.0]                                      # Maximum values
-        ldef = [self.p.gmm1, 1.0 - self.p.axro, self.p.mss1, self.p.posa, self.p.rad1]   # Default values (from template file)
+        llabel = ['Gamma 1', 'Ellipticty', 'Einstein Rad.', 'Position Angle', 'Inner Break']    # Parameter names
+        lmin = [1.1, 0.0, 0.1, -180.0, 0.1]                                                     # Minimum values
+        lmax = [2.98, 0.9, 3.0, 180.0, 3.0]                                                     # Maximum values
+        ldef = [self.p.gmm1, 1.0 - self.p.axro, self.p.mss1, self.p.posa, self.p.rad1]          # Default values (from template file)
+        lres = [0.02, 0.02, 0.02, 10.0, 0.02]
 
         # Initialise lens sliders
-        self.lens_text = tk.Label(self.lens_sliders_frame, text='Inner Params', bg=bgcol, fg=txcol)
+        self.lens_text = tk.Label(self.lens_sliders_frame, text='Single PLaw Params.', bg=self.bgcol, fg=self.txcol)
         self.lens_sliders = [
-            tk.Scale(self.lens_sliders_frame, from_=lmin[i], to=lmax[i], label=llabel[i], bg=bgcol,
-                     resolution=0.02, orient=tk.HORIZONTAL, fg=txcol)
+            tk.Scale(self.lens_sliders_frame, from_=lmin[i], to=lmax[i], label=llabel[i], bg=self.bgcol,
+                     resolution=lres[i], orient=tk.HORIZONTAL, fg=self.txcol, command=self.update)
             for i in range(len(llabel))
         ]
 
         # Bind lens sliders to slow update on button release only and pack
         self.lens_text.pack()
         for i, l in enumerate(self.lens_sliders):
-            l.bind("<ButtonRelease-1>", self.update_slow)
             l.set(ldef[i])
             l.pack()
 
         # Properties of lens 2 sliders ---------------------------------------------------------------------------------
-        llabel = ['Gamma', 'Einstein Rad.', 'Trunc. Radius']
-        lmin = [1.10, 0.1, 0.1]                                      # Minimum values
-        lmax = [2.98, 3.0, 3.0]                                      # Maximum values
-        ldef = [self.p.gmm2, self.p.mss2, self.p.rad2]               # Default values (from template file)
+        llabel = ['Gamma 2', 'Gamma 3', 'Outer Break']    # Parameter names
+        lmin = [1.1, 1.1, 0.1]                                                     # Minimum values
+        lmax = [2.98, 2.98, 3.0]                                                     # Maximum values
+        ldef = [self.p.gmm2, self.p.gmm3, self.p.rad2]          # Default values (from template file)
+        lres = [0.02, 0.02, 0.02]
 
         # Initialise lens sliders
-        self.lens_text2 = tk.Label(self.lens_sliders2_frame, text='Middle Params', bg=bgcol, fg=txcol)
+        self.lens_text2 = tk.Label(self.lens_sliders_frame2, text='Multiple PLaw Params', bg=self.bgcol, fg=self.txcol)
         self.lens_sliders2 = [
-            tk.Scale(self.lens_sliders2_frame, from_=lmin[i], to=lmax[i], label=llabel[i],
-                     resolution=0.02, orient=tk.HORIZONTAL, bg=bgcol, fg=txcol)
-            for i in range(len(llabel))]
+            tk.Scale(self.lens_sliders_frame2, from_=lmin[i], to=lmax[i], label=llabel[i], bg=self.bgcol,
+                     resolution=lres[i], orient=tk.HORIZONTAL, fg=self.txcol, command=self.update)
+            for i in range(len(llabel))
+        ]
 
+        # Bind lens sliders to slow update on button release only and pack
         self.lens_text2.pack()
         for i, l in enumerate(self.lens_sliders2):
-            l.bind("<ButtonRelease-1>", self.update_slow)
-            l.set(ldef[i])
-            l.pack()
-
-        # Properties of lens 3 sliders ---------------------------------------------------------------------------------
-        llabel = ['Gamma', 'Einstein Rad.']
-        lmin = [1.10, 0.1, 0.1]                                      # Minimum values
-        lmax = [2.98, 3.0, 3.0]                                      # Maximum values
-        ldef = [self.p.gmm3, self.p.mss3]               # Default values (from template file)
-
-        # Initialise lens sliders
-        self.lens_text3 = tk.Label(self.lens_sliders3_frame, text='Outer Params', bg=bgcol, fg=txcol)
-        self.lens_sliders3 = [
-            tk.Scale(self.lens_sliders3_frame, from_=lmin[i], to=lmax[i], label=llabel[i],
-                     resolution=0.02, orient=tk.HORIZONTAL, bg=bgcol, fg=txcol)
-            for i in range(len(llabel))]
-
-        self.lens_text3.pack()
-        for i, l in enumerate(self.lens_sliders3):
-            l.bind("<ButtonRelease-1>", self.update_slow)
             l.set(ldef[i])
             l.pack()
 
         # Initialise image parameter sliders ---------------------------------------------------------------------------
 
         # SNR Level
-        self.snr_slider = tk.Scale(self.image_sliders, from_=10.0, to=300, label='SNR in Mask',
-                                   resolution=1.0, orient=tk.HORIZONTAL, command=self.update_plots, bg=bgcol, fg=txcol)
+        self.snr_slider = tk.Scale(self.image_sliders, from_=10.0, to=1000, label='SNR in Mask',
+                                   resolution=10, orient=tk.HORIZONTAL, command=self.update_plots, bg=self.bgcol, fg=self.txcol)
         self.snr_slider.set(self.p.snr)
         self.snr_slider.pack()
         self.mask_bool = tk.BooleanVar(value=False)
@@ -198,51 +180,47 @@ class App:
         self.cc_bool = tk.BooleanVar(value=True)
 
         # Initialise image figure --------------------------------------------------------------------------------------
-        self.fig = Figure(figsize=(6, 6.2))                                       # Open figure object
-        self.ax1 = self.fig.add_subplot(111)
-        div = make_axes_locatable(self.ax1)
-        self.ax2 = div.append_axes('bottom', '3%', pad=0.0)
+        self.fig = Figure(figsize=(6, 8))                                       # Open figure object
+        gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
+        self.ax1 = self.fig.add_subplot(gs[0])
+        self.ax3 = self.fig.add_subplot(gs[1])
+        # div = make_axes_locatable(self.ax1)
+        # self.ax2 = div.append_axes('bottom', '1.5%', pad=0.0)
 
-        self.fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0)      # Fill page with axis
+        self.fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0,
+                                 hspace=0.0, wspace=0.0)      # Fill page with axis
 
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self.image_frame)
-        self.canvas.show()
-        self.canvas_w = self.canvas.get_tk_widget()
-        self.canvas_w.grid(column=0, row=0)
-        self.canvas_w.pack(fill='both', expand=True)
+        self.lens_canvas = FigureCanvasTkAgg(self.fig, master=self.image_frame)
+        self.lens_canvas.show()
+        self.lens_canvas_w = self.lens_canvas.get_tk_widget()
+        self.lens_canvas_w.grid(column=0, row=0)
+        self.lens_canvas_w.pack(fill='both', expand=True)
 
         # Other variables to be init. later ----------------------------------------------------------------------------
         [self.src, self.img, self.alpha,
          self.n_level, self.mask, self.img_noise,
-         self.caustic, self.critcurve] = [None] * 8
-
-        # # Continuity button
-        self.cont_bool = tk.BooleanVar(value=True)
-        self.cont_button = tk.Checkbutton(self.lens_sliders2_frame, variable=self.cont_bool,
-                                          onvalue=True, offvalue=False, justify='left', fg=txcol,
-                                          text='Mass Continuity', command=self.update_slow, bg=bgcol)
-        self.cont_button.pack()
+         self.caustic, self.critcurve, self.cbar] = [None] * 9
 
         # Perform first lens calculations
-        self.update_slow()
+        self.update()
 
         # Mask button
         self.mask_button = tk.Checkbutton(self.image_sliders2, variable=self.mask_bool,
-                                          onvalue=True, offvalue=False, justify='left', fg=txcol,
-                                          text='Show Mask', command=self.update_plots, bg=bgcol)
+                                          onvalue=True, offvalue=False, justify='left', fg=self.txcol,
+                                          text='Show Mask', command=self.update_plots, bg=self.bgcol)
         self.mask_button.pack()
 
         # Elliptical Radiii Button
         self.radii_button = tk.Checkbutton(self.image_sliders2, variable=self.radii_bool,
-                                           onvalue=True, offvalue=False, justify='left', fg=txcol,
-                                           text='Show Radii', command=self.update_plots, bg=bgcol)
+                                           onvalue=True, offvalue=False, justify='left', fg=self.txcol,
+                                           text='Show Radii', command=self.update_plots, bg=self.bgcol)
         self.radii_button.pack()
 
         # Caustic button
         self.cc_button = tk.Checkbutton(self.image_sliders2, variable=self.cc_bool,
-                                        activeforeground=txcol, disabledforeground=txcol,
-                                        onvalue=True, offvalue=False, justify='left', fg=txcol,
-                                        text='Show CC/Ca.', command=self.update_plots, bg=bgcol)
+                                        activeforeground=self.txcol, disabledforeground=self.txcol,
+                                        onvalue=True, offvalue=False, justify='left', fg=self.txcol,
+                                        text='Show CC/Ca.', command=self.update_plots, bg=self.bgcol)
         self.cc_button.pack()
 
         # Pack the whole frame
@@ -252,6 +230,8 @@ class App:
         """
         Redraws the image plane frame after any update
         """
+
+        # Image Plane plot ------------------------------------------------------------------------- #
 
         # Get the new noise level and mask
         self.n_level, self.mask = self.snr_set()
@@ -270,11 +250,11 @@ class App:
         elif self.plot_type.get() == 'vec':
             dx = 5
             a1, a2 = self.alpha_convert()
-            cm = self.ax1.quiver(self.pix[0][(dx/2)::dx, (dx/2)::dx],
-                                 self.pix[1][(dx/2)::dx, (dx/2)::dx],
-                                 a1[(dx/2)::dx, (dx/2)::dx],
-                                 a2[(dx/2)::dx, (dx/2)::dx],
-                                 np.hypot(a1[(dx/2)::dx, (dx/2)::dx], a2[(dx/2)::dx, (dx/2)::dx]))
+            cm = self.ax1.quiver(self.pix[0][(dx//2)::dx, (dx//2)::dx],
+                                 self.pix[1][(dx//2)::dx, (dx//2)::dx],
+                                 a1[(dx//2)::dx, (dx//2)::dx],
+                                 a2[(dx//2)::dx, (dx//2)::dx],
+                                 np.hypot(a1[(dx//2)::dx, (dx//2)::dx], a2[(dx//2)::dx, (dx//2)::dx]))
 
         elif self.plot_type.get() == 'mag':
             a1, a2 = self.alpha_convert()
@@ -295,6 +275,16 @@ class App:
                              np.hypot(self.pix[0] * (1.0 - self.lens_sliders[1].get()), self.pix[1]),
                              levels=np.linspace(0.0, 4.0, 21), colors=self.detail_color, alpha=0.2)
 
+        # Add truncation radius:
+        if self.plaw_slider.get() != 3:
+            levels = [self.lens_sliders[4].get()]
+        else:
+            levels = [self.lens_sliders[4].get(), self.lens_sliders2[2].get()]
+
+        self.ax1.contour(self.pix[0], self.pix[1],
+                         np.hypot(self.pix[0] * (1.0 - self.lens_sliders[1].get()), self.pix[1]),
+                         levels=levels, colors=self.detail_color, alpha=0.5)
+
         # Plot the source position (x)
         self.ax1.plot(self.source_sliders[0].get(),
                       self.source_sliders[1].get(),
@@ -313,26 +303,63 @@ class App:
             self.ax1.plot(self.caustic[0], self.caustic[1], ':', color=self.detail_color, lw=1.0)
             self.ax1.plot(self.critcurve[0], self.critcurve[1], ':', color=self.detail_color, lw=1.0)
 
-        # Plot the break radii
-        self.ax1.contour(self.pix[0], self.pix[1],
-                         np.hypot(self.pix[0] * (1.0 - self.lens_sliders[1].get()), self.pix[1]),
-                         levels=[self.lens_sliders[4].get(), self.lens_sliders2[2].get()],
-                         colors=self.detail_color, alpha=0.2)
-
         # Add the colorbar
-        self.cbar = self.fig.colorbar(cm, cax=self.ax2, orientation='horizontal')
-        self.ax2.xaxis.set_ticks_position('top')
-        self.ax2.xaxis.label.set_color(self.detail_color)
-        self.ax2.tick_params(axis='x', colors=self.detail_color)
+        # self.cbar = self.fig.colorbar(cm, cax=self.ax2, orientation='horizontal')
+        # self.cbar.set_ticks([])
+        # self.ax2.xaxis.set_ticks_position('top')
+        # self.ax2.xaxis.label.set_color(self.detail_color)
+        # self.ax2.tick_params(axis='x', colors=self.detail_color)
 
         # Formatting
         self.ax1.set(xticks=[], yticks=[], xlim=[-2, 2], ylim=[-2, 2])
         self.ax1.axhline(0.0, color=self.detail_color, linestyle='-', alpha=0.5, lw=1.0)
         self.ax1.axvline(0.0, color=self.detail_color, linestyle='-', alpha=0.5, lw=1.0)
 
-        self.canvas.draw()
+        # Deflection Angle Plot ------------------------------------------------------------------ #
+        self.ax3.clear()
 
-    def update_fast(self, event=None):
+        # Calculate deflection angle along the x-axis
+        x = self.pix[0][50, :]
+        a1, a2 = self.alpha_convert()
+        a = np.hypot(a1[50, :], a2[50, :])
+        b = self.lens_sliders[2].get()
+
+        # Calculate mass distribution
+        k = kappa(np.abs(x),
+                  b,
+                  self.lens_sliders[0].get(),
+                  self.lens_sliders2[0].get(),
+                  self.lens_sliders2[1].get(),
+                  self.lens_sliders[4].get() / (1.0 - self.lens_sliders[1].get()),
+                  self.lens_sliders2[2].get() / (1.0 - self.lens_sliders[1].get()),
+                  self.plaw_slider.get())
+
+        self.ax3.plot(x, a, 'C0', label='$\\alpha(\\theta)$')
+        self.ax3.plot(x, k, 'C1', label='$\\kappa(\\theta)$')
+
+        self.ax3.legend(fontsize='x-small')
+        self.ax3.tick_params(axis='y', direction='in', colors='w', pad=-20.0, labelsize=10)
+
+        self.ax3.axvline(0.0, color=self.detail_color, linestyle='-', alpha=0.5, lw=1.0)
+
+        self.ax3.set_facecolor(self.bgcol)
+        self.ax3.axvline(b / (1.0 - self.lens_sliders[1].get()), linestyle='dotted', color='w', alpha=0.5)
+        self.ax3.axvline(- b / (1.0 - self.lens_sliders[1].get()), linestyle='dotted', color='w', alpha=0.5)
+        # self.ax3.axhline(b, linestyle='dotted', color='w', alpha=0.5)
+        self.ax3.axvline(self.lens_sliders[4].get() / (1.0 - self.lens_sliders[1].get()), linestyle='dashed', color='w', alpha=0.5)
+        self.ax3.axvline(- self.lens_sliders[4].get() / (1.0 - self.lens_sliders[1].get()), linestyle='dashed', color='w', alpha=0.5)
+        if self.plaw_slider.get() == 3:
+            self.ax3.axvline(self.lens_sliders2[2].get() / (1.0 - self.lens_sliders[1].get()), linestyle='dashed',
+                             color='w', alpha=0.5)
+            self.ax3.axvline(- self.lens_sliders2[2].get() / (1.0 - self.lens_sliders[1].get()), linestyle='dashed',
+                             color='w', alpha=0.5)
+
+        self.ax3.set(xlim=[-2.0, 2.0], ylim=[0, 2.5],
+                     yticks=[])
+
+        self.lens_canvas.draw()
+
+    def update(self, event=None):
         """
         Updates for faster functions e.g. changing source properties or SNR etc.
         """
@@ -343,71 +370,17 @@ class App:
                           self.source_sliders[2].get(), self.p.srcb,
                           self.source_sliders[3].get())
 
-        self.img = sersic(self.alpha,
-                          self.source_sliders[0].get(),
-                          self.source_sliders[1].get(),
-                          self.source_sliders[2].get(), self.p.srcb,
-                          self.source_sliders[3].get())
-
-        self.update_plots()
-
-    def update_slow(self, event=None):
-        """
-        Updates for slow functions e.g. changing any of the lens parameters.
-        """
-
-        if self.plaw_slider.get() == 1:
-            for l in self.lens_sliders2:
-                l.config(state=tk.DISABLED)
-            for l in self.lens_sliders3:
-                l.config(state=tk.DISABLED)
-        elif self.plaw_slider.get() == 2:
-            for l in self.lens_sliders2:
-                l.config(state=tk.NORMAL)
-            for l in self.lens_sliders3:
-                l.config(state=tk.DISABLED)
-        else:
-            for l in self.lens_sliders2:
-                l.config(state=tk.NORMAL)
-            for l in self.lens_sliders3:
-                l.config(state=tk.NORMAL)
-
-        # Get parameters
-        p = self.p_dict()
-
-        if self.cont_bool.get():
-            # # For mass profiles fixed by continuity
-            pref1 = (3.0 - p['gmm1']) / (3.0 - p['gmm2'])
-            rt1 = np.sqrt(p['axro']) * p['rad1']
-            self.m2 = rt1 * (pref1 * (p['mss1'] / rt1) ** (p['gmm1'] - 1.0)) ** (1.0 / (p['gmm2'] - 1.0))
-            pref2 = (3.0 - p['gmm2']) / (3.0 - p['gmm3'])
-            rt2 = np.sqrt(p['axro']) * p['rad2']
-            self.m3 = rt2 * (pref2 * (p['mss2'] / rt2) ** (p['gmm2'] - 1.0)) ** (1.0 / (p['gmm3'] - 1.0))
-            self.lens_sliders2[1].set(self.m2)
-            self.lens_sliders3[1].set(self.m3)
-
-        else:
-            self.m2 = self.lens_sliders2[1].get()
-            self.m3 = self.lens_sliders3[1].get()
-
-        self.src = sersic(self.pix,
-                          self.source_sliders[0].get(),
-                          self.source_sliders[1].get(),
-                          self.source_sliders[2].get(), self.p.srcb,
-                          self.source_sliders[3].get())
-
-        self.alpha = tessore_switch(self.pix,
-                                    self.lens_sliders[0].get(),
-                                    self.lens_sliders2[0].get(),
-                                    self.lens_sliders3[0].get(),
-                                    1.0 - self.lens_sliders[1].get(),
-                                    self.lens_sliders[2].get(),
-                                    self.m2,
-                                    self.m3,
-                                    180.0 * self.lens_sliders[3].get() / np.pi,
-                                    self.lens_sliders[4].get(),
-                                    self.lens_sliders2[2].get(),
-                                    npow=self.plaw_slider.get(), trunc=True)
+        self.alpha = deflection_switch(self.pix,
+                                       self.lens_sliders[0].get(),
+                                       self.lens_sliders2[0].get(),
+                                       self.lens_sliders2[1].get(),
+                                       1.0 - self.lens_sliders[1].get(),
+                                       self.lens_sliders[2].get(),
+                                       self.lens_sliders[3].get(),
+                                       self.lens_sliders[4].get(),
+                                       self.lens_sliders2[2].get(),
+                                       npow=self.plaw_slider.get(),
+                                       trunc=True)
 
         self.img = sersic(self.alpha,
                           self.source_sliders[0].get(),
@@ -514,19 +487,17 @@ class App:
         # Get coordinates of zeros and transorm back to source plane
         # via deflection angle
         x1_crit, x2_crit = x1[det_mask], x2[det_mask]
-        x1_caus, x2_caus = tessore_switch((x1_crit, x2_crit),
-                                          self.lens_sliders[0].get(),
-                                          self.lens_sliders2[0].get(),
-                                          self.lens_sliders2[0].get(),
-                                          1.0 - self.lens_sliders[1].get(),
-                                          self.lens_sliders[2].get(),
-                                          self.m2,
-                                          self.m3,
-                                          180.0 * self.lens_sliders[3].get() / np.pi,
-                                          self.lens_sliders[2].get(),
-                                          self.lens_sliders2[2].get(),
-                                          npow=self.plaw_slider.get(),
-                                          trunc=True)
+        x1_caus, x2_caus = deflection_switch((x1_crit, x2_crit),
+                                             self.lens_sliders[0].get(),
+                                             2.0,
+                                             2.0,
+                                             1.0 - self.lens_sliders[1].get(),
+                                             self.lens_sliders[2].get(),
+                                             self.lens_sliders[3].get(),
+                                             self.lens_sliders[4].get(),
+                                             3.0,
+                                             npow=self.plaw_slider.get(),
+                                             trunc=True)
 
         # Sort the arrays so line plots are in the correct order
         ca_sort = np.argsort(np.arctan2(x1_caus, x2_caus))
@@ -577,7 +548,75 @@ def snr_find(image, nlevel, sig=2.0):
     return (mask * image).sum() / ((mask * nlevel ** 2.0).sum() ** 0.5), mask
 
 
+def mass_continuity(b1, g1, g2, r0):
+    """
+    Calculates the normalisation of the second profile
+    to maintain continuity at theta = r0.
+    """
+    return r0 * (((3.0 - g1) / (3.0 - g2)) * (b1 / r0) ** (g1 - 1.0)) ** (1.0 / (g2 - 1.0))
+
+
+def kappa(x, b1, g1, g2, g3, r1, r2, npow):
+    """
+    Calculates a three power law mass distribution
+    """
+
+    b2 = mass_continuity(b1, g1, g2, r1)
+    b3 = mass_continuity(b2, g2, g3, r2)
+
+    k = lambda r, b, g: ((3.0 - g) / 2.0) * (b / r) ** (g - 1.0)
+
+    if npow == 1:
+        return (k(x, b1, g1) * (x < r1).astype('float') +
+                0.0 * (x >= r1).astype('float')) * single_correction(True, r1, b1, g1)
+
+    if npow == 2:
+        return (k(x, b1, g1) * (x < r1).astype('float') +
+                k(x, b2, g2) * (x >= r1).astype('float')) * double_correction(b1, b2, g1, g2, r1)
+
+    if npow == 3:
+        return (k(x, b1, g1) * (x < r1).astype('float') +
+                k(x, b2, g2) * (x >= r1).astype('float') * (x < r2).astype('float') +
+                k(x, b3, g3) * (x >= r2).astype('float')) * triple_correction(b1, b2, b3, g1, g2, g3, r1, r2)
+
+
+def single_correction(t, r, m, g):
+    """
+    Calculates the correction to the deflection angle
+    if using a truncated profile. This ensures that b keeps
+    the definition it has in an untruncated profile.
+    """
+
+    if not t:
+        c = 1.0
+    elif r > m:
+        c = 1.0
+    else:
+        c = ((m / r) ** (3.0 - g))
+
+    return c
+
+
+def double_correction(b1, b2, g1, g2, r0):
+    """
+    Calculates the correction to the double mass profile
+    such that the Einstein radius maintains its original
+    definition.
+
+    """
+    def f(a, b, c):
+        return (a ** (c - 1.0)) * (b ** (3.0 - c))
+
+    return (b1 ** 2) / (f(b1, r0, g1) + f(b2, b1, g2) - f(b2, r0, g2))
+
+
+def triple_correction(b1, b2, b3, g1, g2, g3, r1, r2):
+    f = lambda a, b, c: (a ** (c - 1.0)) * (b ** (3.0 - c))
+
+    return (b1 ** 2) / (f(b1, r1, g1) + f(b2, r2, g2) - f(b2, r1, g2) + f(b3, b1, g3) - f(b3, r2, g3))
+
+
 root = tk.Tk()
-root.title('live-lens')
+root.title('Live Lens')
 app = App(root)
 root.mainloop()

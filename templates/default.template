@@ -34,7 +34,7 @@ class params:
         self.active_params = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
         # Number of power laws to use
-        self.npow = 2
+        self.npow = 1
 
         # Observation parameters
 
@@ -55,7 +55,7 @@ class params:
 
         # Lens parameters
 
-        self.trunc = True               # Truncation on/off
+        self.trunc = False               # Truncation on/off
         self.mss1 = 1.20                # Lens total mass OR Einstein radius
         self.mss2 = 1.20
         self.mss3 = 1.20
@@ -63,7 +63,7 @@ class params:
         self.gmm2 = 2.00                # Lens mass distribution middle slope
         self.gmm3 = 2.00                # Lens mass distribution outer slope
         self.axro = 0.80             # Lens axis ratio (1 - ellipticity)
-        self.rad1 = 0.50                # Inner break radius
+        self.rad1 = 2.99                # Inner break radius
         self.rad2 = 3.00                 # Outer break radius
         self.posa = 0.00                 # Lens position angle
 

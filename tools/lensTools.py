@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from pickle import load
-from physTools import sersic, tessore_switch
+from tools.physTools import sersic, deflection_switch
 from astropy.convolution import Gaussian2DKernel, convolve
 from scipy.interpolate import interp1d
 from scipy.optimize import brenth
@@ -317,7 +317,7 @@ def model(theta, fixd):
         x2.append(yy)
 
     img = np.sqrt(
-        sersic(tessore_switch((x1[0], x2[0]),
+        sersic(deflection_switch((x1[0], x2[0]),
                               temp.gmm1, temp.gmm2, temp.gmm3, temp.axro,
                               temp.mss1, temp.mss2, temp.mss3, temp.posa,
                               fixd.rad1, fixd.rad2, trunc=fixd.trunc, npow=fixd.npow),
@@ -338,7 +338,7 @@ def model(theta, fixd):
             y = x2[msk[i, j]][i, :, j, :]
 
             # Integrate over those coordinates and save
-            alpha = tessore_switch((x, y),
+            alpha = deflection_switch((x, y),
                                    temp.gmm1, temp.gmm2, temp.gmm3, temp.axro,
                                    temp.mss1, temp.mss2, temp.mss3, temp.posa,
                                    fixd.rad1, fixd.rad2, trunc=fixd.trunc, npow=fixd.npow)
@@ -354,7 +354,7 @@ def deflection_angle(xy, p):
     """
 
     x1, x2 = xy
-    a1, a2 = tessore_switch(xy,
+    a1, a2 = deflection_switch(xy,
                             p.gmm1, p.gmm2, p.gmm3, p.axro,
                             p.mss1, p.mss2, p.mss3, p.posa,
                             p.rad1, p.rad2, p.npow,
@@ -479,7 +479,7 @@ def caus_crit(grid, alpha, p, crit_line=True):
     # Get coordinates of zeros and transorm back to source plane
     # via deflection angle
     x1_crit, x2_crit = x1[det_mask], x2[det_mask]
-    x1_caus, x2_caus = tessore_switch((x1_crit, x2_crit),
+    x1_caus, x2_caus = deflection_switch((x1_crit, x2_crit),
                                       p.gmm1, p.gmm2, p.gmm3, p.axro,
                                       p.mss1, p.mss2, p.mss3, p.posa,
                                       p.rad1, p.rad2, p.npow,
