@@ -418,8 +418,8 @@ class App:
         #     self.ax3.text(x2, 0.2, '$\gamma_2=%.2f$' % self.lens_sliders2[0].get(),
         #                   ha='center', va='bottom', color='w', alpha=0.5)
         #
-        # self.ax3.set(xlim=[-2.0, 2.0], ylim=[0, 2.5],
-        #              yticks=[])
+        self.ax3.set(xlim=[-2.0, 2.0], ylim=[0, 2.5],
+                     yticks=[])
 
         self.lens_canvas.draw()
 
