@@ -192,14 +192,21 @@ class App:
 
         self.lens_canvas = FigureCanvasTkAgg(self.fig, master=self.image_frame)
         self.lens_canvas.show()
+
+        # Bind mouse events in the image plane to the source sliders to
+        # drag the source around with the mouse
+        self.lens_canvas.mpl_connect('button_press_event', self.on_press)
+        self.lens_canvas.mpl_connect('button_release_event', self.on_release)
+        self.lens_canvas.mpl_connect('motion_notify_event', self.on_motion)
+
         self.lens_canvas_w = self.lens_canvas.get_tk_widget()
         self.lens_canvas_w.grid(column=0, row=0)
         self.lens_canvas_w.pack(fill='both', expand=True)
 
         # Other variables to be init. later ----------------------------------------------------------------------------
-        [self.src, self.img, self.alpha,
+        [self.src, self.img, self.alpha, self.press,
          self.n_level, self.mask, self.img_noise,
-         self.caustic, self.critcurve, self.cbar] = [None] * 9
+         self.caustic, self.critcurve, self.cbar] = [None] * 10
 
         # Perform first lens calculations
         self.update()
@@ -225,6 +232,40 @@ class App:
 
         # Pack the whole frame
         frame.pack()
+
+    def on_press(self, event):
+
+        if event.inaxes != self.ax1:
+            return
+
+        contains, attrd = self.ax1.contains(event)
+
+        if not contains:
+            return
+
+        x0, y0 = self.source_sliders[0].get(), self.source_sliders[1].get()
+        self.press = x0, y0, event.xdata, event.ydata
+
+    def on_motion(self, event):
+
+        if self.press is None:
+            return
+        if event.inaxes != self.ax1:
+            return
+
+        x0, y0, xpress, ypress = self.press
+        dx = event.xdata - xpress
+        dy = event.ydata - ypress
+
+        self.source_sliders[0].set(x0+dx)
+        self.source_sliders[1].set(y0+dy)
+
+        self.update()
+
+    def on_release(self, event):
+
+        self.press = None
+        self.update()
 
     def update_plots(self, event=None):
         """
@@ -345,7 +386,7 @@ class App:
         self.ax3.set_facecolor(self.bgcol)
         self.ax3.axvline(b / (1.0 - self.lens_sliders[1].get()), linestyle='dotted', color='w', alpha=0.5)
         self.ax3.axvline(- b / (1.0 - self.lens_sliders[1].get()), linestyle='dotted', color='w', alpha=0.5)
-        # self.ax3.axhline(b, linestyle='dotted', color='w', alpha=0.5)
+
         self.ax3.axvline(self.lens_sliders[4].get() / (1.0 - self.lens_sliders[1].get()), linestyle='dashed', color='w', alpha=0.5)
         self.ax3.axvline(- self.lens_sliders[4].get() / (1.0 - self.lens_sliders[1].get()), linestyle='dashed', color='w', alpha=0.5)
         if self.plaw_slider.get() == 3:
@@ -354,8 +395,31 @@ class App:
             self.ax3.axvline(- self.lens_sliders2[2].get() / (1.0 - self.lens_sliders[1].get()), linestyle='dashed',
                              color='w', alpha=0.5)
 
-        self.ax3.set(xlim=[-2.0, 2.0], ylim=[0, 2.5],
-                     yticks=[])
+        # if self.plaw_slider.get() == 1:
+        #
+        #     if self.lens_sliders[4].get() > 2.0:
+        #         x = 1.0
+        #     else:
+        #         x = 0.5 * self.lens_sliders[4].get() / (1.0 - self.lens_sliders[1].get())
+        #     self.ax3.text(x, 0.2, '$\gamma_1=%.2f$' % self.lens_sliders[0].get(),
+        #                   ha='center', va='bottom', color='w', alpha=0.5)
+        #
+        # if self.plaw_slider.get() == 2:
+        #
+        #     if self.lens_sliders[4].get() > 2.0:
+        #         x1 = 1.0
+        #         x2 = 3.0
+        #     else:
+        #         x1 = 0.5 * self.lens_sliders[4].get() / (1.0 - self.lens_sliders[1].get())
+        #         x2 = x1 + 0.5 * (2.0 / (1.0 - self.lens_sliders[1].get()) - x1)
+        #
+        #     self.ax3.text(x1, 0.2, '$\gamma_1=%.2f$' % self.lens_sliders[0].get(),
+        #                   ha='center', va='bottom', color='w', alpha=0.5)
+        #     self.ax3.text(x2, 0.2, '$\gamma_2=%.2f$' % self.lens_sliders2[0].get(),
+        #                   ha='center', va='bottom', color='w', alpha=0.5)
+        #
+        # self.ax3.set(xlim=[-2.0, 2.0], ylim=[0, 2.5],
+        #              yticks=[])
 
         self.lens_canvas.draw()
 
